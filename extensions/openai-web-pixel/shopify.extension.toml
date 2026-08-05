@@ -1,0 +1,11 @@
+name = "OpenAI Ads Web Pixel"
+type = "web_pixel_extension"
+runtime_context = "strict"
+uid = "700d0609-5ed0-d2b8-bcb8-61f806b0b50b5262bace"
+
+[settings]
+type = "object"
+[settings.fields.pixel_id]
+name = "Pixel ID"
+description = "Your Pixel ID from OpenAI Ads Manager"
+type = "single_line_text_field"

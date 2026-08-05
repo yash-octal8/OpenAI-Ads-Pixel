@@ -1,0 +1,172 @@
+.plan-page-wrapper {
+    padding: 20px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.plan-title-container {
+    margin-bottom: 30px;
+    width: 100%;
+    max-width: 900px;
+    text-align: center;
+}
+
+.plan-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+}
+
+.plan-subheading {
+    font-size: 16px;
+    color: #6d7175;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.plan-cards-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    width: 100%;
+    max-width: 900px;
+    flex-wrap: wrap;
+}
+
+.plan-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    flex: 1;
+    min-width: 300px;
+    max-width: 440px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* slightly increased shadow for pop */
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e1e3e5;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.plan-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.plan-card-header {
+    margin-bottom: 16px;
+}
+
+.recommended-badge {
+  position: absolute;
+  top: 0;
+  right: -50px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.plan-card-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.plan-card-description {
+    font-size: 14px;
+    color: #6d7175;
+    line-height: 1.5;
+    min-height: 42px;
+}
+
+.plan-card-price-container {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.plan-card-price {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1a1a1a;
+}
+
+.plan-card-price-original {
+    font-size: 24px;
+    font-weight: 600;
+    color: #babfc3;
+    text-decoration: line-through;
+}
+
+.plan-card-period {
+    font-size: 14px;
+    color: #6d7175;
+}
+
+.plan-card-divider {
+    height: 1px;
+    background-color: #f1f2f3;
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.plan-features-list {
+    margin-bottom: 24px;
+    flex-grow: 1;
+}
+
+.plan-feature-item {
+    font-size: 14px;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.plan-button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.plan-button-current {
+    background-color: #d2d5d9;
+    color: white;
+    cursor: default;
+}
+
+.plan-button-change {
+    background: linear-gradient(180deg, #454545 0%, #1a1a1a 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.plan-button-change:hover {
+    background: linear-gradient(180deg, #555555 0%, #2a2a2a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+.plan-footer {
+    margin-top: 40px;
+    color: #6d7175;
+    font-size: 12px;
+    text-align: center;
+}
+
+.plan-footer span {
+    color: #6d7175;
+    font-weight: 600;
+}

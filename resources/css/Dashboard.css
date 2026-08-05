@@ -1,0 +1,57 @@
+.setup-step {
+  padding: 16px;
+  border-bottom: 1px solid #ebebeb;
+  transition: background-color 0.2s ease;
+}
+
+.setup-step:last-child {
+  border-bottom: none;
+}
+
+.setup-step:hover {
+  background-color: #f9fafb;
+}
+
+.setup-step.active {
+  background-color: #f4f6f8;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Completed */
+.step-completed {
+  background-color: #d1f7d6;
+  color: #0c5132;
+  border: 1px solid #aee9b8;
+}
+
+/* Current / Active */
+.step-current-undone {
+  background-color: #e8f2ff;
+  color: #005bd3;
+  border: 1px solid #a9d0ff;
+}
+
+/* Pending */
+.step-pending-undone {
+  background-color: #ffffff;
+  color: #6d7175;
+  border: 1px solid #c9cccf;
+}
+
+.Polaris-Tabs__Tab.Polaris-Tabs__Tab--active {
+  background-color: #303030 !important;
+  color: #f2f2f2 !important;
+  box-shadow: 0rem -0.0625rem 0rem 0.0625rem rgba(0, 0, 0, 0.8) inset, 0rem 0rem 0rem 0.0625rem rgba(48, 48, 48, 1) inset, 0rem 0.03125rem 0rem 0.09375rem rgba(255, 255, 255, 0.25) inset;
+}
