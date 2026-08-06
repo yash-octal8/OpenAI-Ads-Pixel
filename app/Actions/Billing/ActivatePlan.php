@@ -83,6 +83,15 @@ class ActivatePlan extends \Osiset\ShopifyApp\Actions\ActivatePlan
             call_user_func($this->cancelCurrentPlan, $shopId);
             $this->chargeCommand->delete($chargeRef, $shopId);
 
+            // Mark all existing ACTIVE charges in DB as CANCELLED
+            \Osiset\ShopifyApp\Storage\Models\Charge::where('user_id', $shop->getId()->toNative())
+                ->where('status', 'ACTIVE')
+                ->update([
+                    'status' => 'CANCELLED',
+                    'cancelled_on' => now(),
+                    'expires_on' => now(),
+                ]);
+
             $transfer = new ChargeTransfer;
             $transfer->shopId = $shopId;
             $transfer->planId = $planId;
@@ -107,6 +116,15 @@ class ActivatePlan extends \Osiset\ShopifyApp\Actions\ActivatePlan
         $response = $shop->apiHelper()->activateCharge($chargeType, $chargeRef);
         call_user_func($this->cancelCurrentPlan, $shopId);
         $this->chargeCommand->delete($chargeRef, $shopId);
+
+        // Mark all existing ACTIVE charges in DB as CANCELLED before creating the new active charge
+        \Osiset\ShopifyApp\Storage\Models\Charge::where('user_id', $shop->getId()->toNative())
+            ->where('status', 'ACTIVE')
+            ->update([
+                'status' => 'CANCELLED',
+                'cancelled_on' => now(),
+                'expires_on' => now(),
+            ]);
 
         $transfer = new ChargeTransfer;
         $transfer->shopId = $shopId;

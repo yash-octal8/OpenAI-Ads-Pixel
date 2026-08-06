@@ -1,4 +1,4 @@
-import { Badge, Page, Box } from "@shopify/polaris";
+import { Page, Box } from "@shopify/polaris";
 import { useEffect, useState } from "react";
 import "../../css/PlanPricing.css";
 import { useI18n } from "../i18n";
@@ -31,7 +31,6 @@ function PlanPageInner({ data, onRefresh }) {
   const fetcher = useApiFetcher();
   const shopify = useAppBridge();
   const { t } = useI18n();
-  const [openIndex, setOpenIndex] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(null);
 
@@ -50,7 +49,7 @@ function PlanPageInner({ data, onRefresh }) {
     let host = urlParams.get("host") || shopify?.config?.host;
     if (!host) {
       const appBridgeMeta = document.querySelector(
-        'meta[name="shopify-setup"]',
+        'meta[name="shopify-setup"]'
       );
       if (appBridgeMeta) {
         try {
@@ -60,7 +59,6 @@ function PlanPageInner({ data, onRefresh }) {
       }
     }
 
-    // apiShop might be a string (shop domain) or an object
     const shopName =
       urlParams.get("shop") ||
       shopify?.config?.shop ||
@@ -69,13 +67,13 @@ function PlanPageInner({ data, onRefresh }) {
 
     if (plan.name === "Free" || parseFloat(plan.price) === 0) {
       shopify.toast.show(
-        t("plans.subscribingFree", "Subscribing to Free plan..."),
+        t("plans.subscribingFree", "Subscribing to Free plan...")
       );
       try {
         const result = await api.post("/plans/choose-plan/free");
         if (result.data?.success) {
           shopify.toast.show(
-            result.data.message || "Successfully subscribed to Free plan",
+            result.data.message || "Successfully subscribed to Free plan"
           );
           onRefresh();
         } else {
@@ -93,7 +91,7 @@ function PlanPageInner({ data, onRefresh }) {
 
     try {
       const response = await api.get(
-        `/billing/${plan.id}?shop=${shopName}&host=${host}`,
+        `/billing/${plan.id}?shop=${shopName}&host=${host}`
       );
       if (response.data && response.data.url) {
         window.open(response.data.url, "_top");
@@ -101,7 +99,7 @@ function PlanPageInner({ data, onRefresh }) {
         if (response.data.errors && response.data.errors.length > 0) {
           console.error(
             "Shopify Error: " +
-              response.data.errors.map((e) => e.message).join(", "),
+              response.data.errors.map((e) => e.message).join(", ")
           );
         }
         setLoading(false);
@@ -114,12 +112,12 @@ function PlanPageInner({ data, onRefresh }) {
   const plansToUse = dbPlans.length > 0 ? dbPlans : [];
 
   const filteredPlans = plansToUse.filter(
-    (plan) => plan.name === "Free" || plan.name === "Basic",
+    (plan) => plan.name === "Free" || plan.name === "Basic"
   );
 
   const plansOrder = ["Free", "Basic"];
   const sortedPlans = [...filteredPlans].sort(
-    (a, b) => plansOrder.indexOf(a.name) - plansOrder.indexOf(b.name),
+    (a, b) => plansOrder.indexOf(a.name) - plansOrder.indexOf(b.name)
   );
 
   const plans = sortedPlans.map((plan) => {
@@ -139,10 +137,8 @@ function PlanPageInner({ data, onRefresh }) {
       buttonDisabled = false;
     }
 
-    if (plan.name === "Basic") {
-      badge = isCurrent
-        ? t("plans.badgeCurrent", "CURRENT PLAN")
-        : t("plans.badgeBestValue", "BEST VALUE");
+    if (plan.name === "Basic" && !isCurrent) {
+      badge = t("plans.badgeBestValue", "BEST VALUE");
     }
 
     return {
@@ -157,14 +153,15 @@ function PlanPageInner({ data, onRefresh }) {
         plan.name === "Free"
           ? t(
               "plans.freeDescription",
-              "Perfect for getting started with up to 50,000 events",
+              "Perfect for getting started with up to 50,000 events"
             )
           : t(
               "plans.basicDescription",
-              "Unlimited event tracking for high-volume stores",
+              "Unlimited event tracking for high-volume stores"
             ),
       badge,
-      primary: plan.name !== "Free",
+      isCurrent,
+      primary: plan.name === "Basic",
       features: plan.features,
       buttonText,
       buttonDisabled,
@@ -176,20 +173,20 @@ function PlanPageInner({ data, onRefresh }) {
     <>
       {loading && <Loader message="Please wait while we prepare your plan." />}
       <Box
-        paddingBlock="800"
+        paddingBlock="600"
         paddingInline="400"
-        style={{ margin: "0 auto", maxWidth: "1000px" }}
+        style={{ margin: "0 auto", maxWidth: "950px" }}
       >
         <Page fullWidth>
           <div className="plan-page-wrapper">
             <div className="plan-title-container">
-              <h2 className="plan-title">
+              <h1 className="plan-title">
                 {t("plans.pageTitle", "Unlock your catalog's potential")}
-              </h2>
+              </h1>
               <p className="plan-subheading">
                 {t(
                   "plans.pageSubtitle",
-                  "Choose the plan that's right for your store's growth.",
+                  "Choose the plan that's right for your store's growth."
                 )}
               </p>
             </div>
@@ -197,23 +194,22 @@ function PlanPageInner({ data, onRefresh }) {
             <div className="plan-cards-container">
               {plans.map((plan, index) => {
                 const displayPrice = `$${plan.price}`;
-                const originalPrice = !plan.isFree
-                  ? `$${(parseFloat(plan.price) * 1.1).toFixed(1)}`
-                  : null;
 
                 return (
                   <div
-                    className="plan-card "
+                    className={`plan-card ${plan.primary ? "plan-card-popular" : ""}`}
                     key={index}
-                    style={
-                      plan.primary
-                        ? {
-                            border:
-                              "2px solid var(--p-color-bg-fill-success-strong)",
-                          }
-                        : {}
-                    }
                   >
+                    {plan.badge && (
+                      <div
+                        className={
+                          plan.isCurrent ? "current-badge" : "recommended-badge"
+                        }
+                      >
+                        {plan.badge}
+                      </div>
+                    )}
+
                     <div className="plan-card-header">
                       <div className="plan-card-title">{plan.name}</div>
                       <div className="plan-card-description">
@@ -222,11 +218,6 @@ function PlanPageInner({ data, onRefresh }) {
                     </div>
 
                     <div className="plan-card-price-container">
-                      {originalPrice && (
-                        <span className="plan-card-price-original">
-                          {originalPrice}
-                        </span>
-                      )}
                       <span className="plan-card-price">{displayPrice}</span>
                       <span className="plan-card-period">{plan.interval}</span>
                     </div>
@@ -236,45 +227,50 @@ function PlanPageInner({ data, onRefresh }) {
                     <div className="plan-features-list">
                       {plan.features.map((feature, fIndex) => (
                         <div className="plan-feature-item" key={fIndex}>
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 20 20"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            style={{
-                              marginRight: "8px",
-                              flexShrink: 0,
-                              border: "1px solid #aee9b8",
-                              borderRadius: "100%",
-                            }}
-                          >
-                            <circle cx="10" cy="10" r="10" fill="#d1f7d6" />
-                            <path
-                              d="M14.6666 6.66669L8.24992 13.0834L5.33325 10.1667"
-                              stroke="#0c5132"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                          <div className="plan-feature-icon">
+                            <svg
+                              width="12"
+                              height="10"
+                              viewBox="0 0 12 10"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M10.6666 1.5L4.24992 7.91667L1.33325 5"
+                                stroke="#008060"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
                           {feature}
                         </div>
                       ))}
                     </div>
 
                     <button
-                      className={`plan-button ${plan.buttonDisabled ? "plan-button-current" : "plan-button-change"}`}
+                      className={`plan-button ${
+                        plan.buttonDisabled
+                          ? "plan-button-current"
+                          : plan.primary
+                          ? "plan-button-primary"
+                          : "plan-button-secondary"
+                      }`}
                       disabled={plan.buttonDisabled || loading}
                       onClick={() => handleSubscribePlan(plan, index)}
                     >
                       {loading && currentIndex === index
-                        ? "Loading..."
+                        ? "Processing..."
                         : plan.buttonText}
                     </button>
                   </div>
                 );
               })}
+            </div>
+
+            <div className="plan-footer-note">
+              <span>🔒 Billed securely through Shopify Billing API. Cancel or change anytime in Shopify Settings.</span>
             </div>
           </div>
         </Page>
