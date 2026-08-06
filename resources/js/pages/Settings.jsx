@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Card,
@@ -12,9 +12,9 @@ import {
   Badge,
   Frame,
   Toast,
-  InlineGrid,
   Divider,
 } from "@shopify/polaris";
+import { ViewIcon, HideIcon } from "@shopify/polaris-icons";
 import api from "../api";
 import { Loader } from "../components/Loader";
 
@@ -26,6 +26,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastError, setToastError] = useState(false);
+  const [showCapiKey, setShowCapiKey] = useState(false);
+  const [showAdvertiserKey, setShowAdvertiserKey] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -124,20 +126,56 @@ export default function Settings() {
                       label="Conversions API key *"
                       value={capiKey}
                       onChange={setCapiKey}
-                      type="password"
+                      type={showCapiKey ? "text" : "password"}
                       placeholder="Paste your key..."
                       autoComplete="off"
                       helpText="Lets Reach send your store events to OpenAI. Create it under Ads Manager, Conversions, Manage conversion keys."
+                      suffix={
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            height: "100%",
+                          }}
+                        >
+                          <Button
+                            icon={showCapiKey ? HideIcon : ViewIcon}
+                            onClick={() => setShowCapiKey((prev) => !prev)}
+                            variant="plain"
+                            accessibilityLabel={
+                              showCapiKey ? "Hide API key" : "Show API key"
+                            }
+                          />
+                        </div>
+                      }
                     />
 
                     <TextField
                       label="Advertiser API key (optional)"
                       value={advertiserKey}
                       onChange={setAdvertiserKey}
-                      type="password"
+                      type={showAdvertiserKey ? "text" : "password"}
                       placeholder="Paste your key"
                       autoComplete="off"
                       helpText="Unlocks spend, ROAS, and CPA on your Performance page. A separate key from Ads Manager. Paste it whenever you're ready."
+                      suffix={
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            height: "100%",
+                          }}
+                        >
+                          <Button
+                            icon={showAdvertiserKey ? HideIcon : ViewIcon}
+                            onClick={() => setShowAdvertiserKey((prev) => !prev)}
+                            variant="plain"
+                            accessibilityLabel={
+                              showAdvertiserKey ? "Hide API key" : "Show API key"
+                            }
+                          />
+                        </div>
+                      }
                     />
                   </BlockStack>
 
