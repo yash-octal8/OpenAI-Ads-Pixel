@@ -31,9 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('shop_settings', function (Blueprint $table) {
-            $table->dropColumn(['pixel_id', 'capi_key', 'advertiser_key', 'tracking_enabled', 'pixel_helper_enabled']);
-        });
         Schema::dropIfExists('pixel_events');
     }
 };

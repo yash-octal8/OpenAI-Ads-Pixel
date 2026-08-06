@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Osiset\ShopifyApp\Messaging\Events\PlanActivatedEvent;
+use Osiset\ShopifyApp\Objects\Values\ChargeId;
 use Osiset\ShopifyApp\Storage\Models\Charge;
 
 class PlanController extends Controller
@@ -14,7 +17,7 @@ class PlanController extends Controller
     {
         $user = auth()->user();
         
-        $dbPlans = \App\Models\Plan::with(['features' => function($q) {
+        $dbPlans = Plan::with(['features' => function($q) {
             $q->orderBy('display_order', 'asc');
         }])->get();
 
@@ -37,15 +40,16 @@ class PlanController extends Controller
             ];
         }
 
-        $currentPlanName = 'Free';
+        $currentPlanName = null;
         if ($user && $user->plan_id) {
-            $activePlan = \App\Models\Plan::find($user->plan_id);
+            $activePlan = Plan::find($user->plan_id);
             if ($activePlan) {
                 $currentPlanName = $activePlan->name;
             }
         }
 
         return response()->json([
+            'success'     => true,
             'currentPlan' => $currentPlanName,
             'shop'        => $user ? $user->name : '',
             'plans'       => $formattedPlans,
@@ -56,46 +60,96 @@ class PlanController extends Controller
     {
         $user = auth()->user();
         if (!$user) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return $this->sendError('Unauthorized', 401);
         }
 
-        $charge = Charge::where('user_id', $user->id)->where('status', 'ACTIVE')->first();
-        if ($charge) {
+        $freePlan = Plan::where('name', 'Free')->first();
+        if (!$freePlan) {
+            return $this->sendError('Free Plan not found', 404);
+        }
+
+        try {
+            DB::transaction(function () use ($user, $freePlan) {
+                $this->deactivateCurrentPlan($user);
+
+                $user->plan_id = $freePlan->id;
+                $user->shopify_freemium = true;
+                $user->save();
+
+                DB::table('charges')->insert([
+                    'user_id' => $user->id,
+                    'plan_id' => $freePlan->id,
+                    'charge_id' => 0,
+                    'type' => 'RECURRING',
+                    'status' => 'ACTIVE',
+                    'name' => $freePlan->name,
+                    'price' => 0.00,
+                    'interval' => 'EVERY_30_DAYS',
+                    'test' => true,
+                    'activated_on' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            });
+
+            // Dispatch PlanActivatedEvent for free plan manually to trigger notification / event listeners
             try {
-                $chargeUrl = '/admin/api/2024-01/recurring_application_charges/' . $charge->charge_id . '.json';
-                $response = $user->api()->rest('DELETE', $chargeUrl);
-
-                if (empty($response['errors']) && isset($response['status']) && $response['status'] === 200) {
-                    $charge->status = 'CANCELLED';
-                    $charge->save();
-                }
-            } catch (\Exception $exception) {
-                Log::error('Error canceling plan: ' . $exception->getMessage());
+                event(new PlanActivatedEvent($user, $freePlan, new ChargeId(0)));
+            } catch (\Throwable $e) {
+                Log::info('PlanActivatedEvent error: ' . $e->getMessage());
             }
+
+            Log::info('Free Plan Subscribed Successfully', [$user]);
+
+            return $this->sendSuccess('Free Plan Subscribed Successfully');
+        } catch (\Throwable $e) {
+            Log::error('chooseFreePlan Error: ' . $e->getMessage());
+            return $this->sendError('Failed to subscribe to Free plan', 500);
+        }
+    }
+
+    public function deactivateCurrentPlan($user = null)
+    {
+        $user = $user ?: auth()->user();
+        if (!$user) {
+            return;
         }
 
-        $freePlan = \App\Models\Plan::where('name', 'Free')->first();
-        if ($freePlan) {
-            $user->plan_id = $freePlan->id;
-            $user->save();
+        $activeCharges = Charge::where('user_id', $user->id)->where('status', 'ACTIVE')->get();
 
-            DB::table('charges')->insert([
-                'user_id' => $user->id,
-                'charge_id' => 0,
-                'test' => false,
-                'status' => 'ACTIVE',
-                'name' => 'Free',
-                'terms' => 'Free Plan',
-                'type' => 'RECURRING',
-                'price' => 0.00,
-                'capped_amount' => 0.00,
-                'plan_id' => $freePlan->id,
-                'activated_on' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        foreach ($activeCharges as $charge) {
+            if ($charge->charge_id) {
+                $gid = str_contains((string) $charge->charge_id, 'gid://') 
+                    ? $charge->charge_id 
+                    : "gid://shopify/AppSubscription/{$charge->charge_id}";
+
+                $query = '
+                mutation appSubscriptionCancel($id: ID!) {
+                  appSubscriptionCancel(id: $id) {
+                    appSubscription {
+                      id
+                      status
+                    }
+                    userErrors {
+                      field
+                      message
+                    }
+                  }
+                }
+                ';
+
+                try {
+                    $shopifyService = new \App\Services\ShopifyService($user);
+                    $shopifyService->execute($query, ['id' => $gid]);
+                } catch (\Throwable $e) {
+                    Log::info('deactivateCurrentPlan Shopify GraphQL error: ' . $e->getMessage());
+                }
+            }
+
+            $charge->status = 'CANCELLED';
+            $charge->cancelled_on = now();
+            $charge->expires_on = now();
+            $charge->save();
         }
-
-        return response()->json(['success' => true, 'message' => 'Downgraded to Free Plan successfully!']);
     }
 }

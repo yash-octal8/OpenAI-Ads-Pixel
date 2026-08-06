@@ -12,6 +12,7 @@ import {
   Toast,
   InlineGrid,
   Divider,
+  ProgressBar,
 } from "@shopify/polaris";
 import api from "../api";
 import { Loader } from "../components/Loader";
@@ -21,6 +22,11 @@ export default function Dashboard() {
   const [pixelId, setPixelId] = useState("");
   const [capiKey, setCapiKey] = useState("");
   const [events, setEvents] = useState([]);
+  const [planName, setPlanName] = useState("Free");
+  const [monthlyCount, setMonthlyCount] = useState(0);
+  const [quotaLimit, setQuotaLimit] = useState(50000);
+  const [usagePercentage, setUsagePercentage] = useState(0);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastError, setToastError] = useState(false);
 
@@ -51,6 +57,11 @@ export default function Dashboard() {
         if (res.data.settings?.pixel_id) setPixelId(res.data.settings.pixel_id);
         if (res.data.settings?.capi_key) setCapiKey(res.data.settings.capi_key);
         if (res.data.events) setEvents(res.data.events);
+        if (res.data.plan_name) setPlanName(res.data.plan_name);
+        if (res.data.monthly_event_count !== undefined) setMonthlyCount(res.data.monthly_event_count);
+        setQuotaLimit(res.data.quota_limit);
+        setUsagePercentage(res.data.usage_percentage || 0);
+        setQuotaExceeded(Boolean(res.data.quota_exceeded));
       }
     } catch (e) {
       // silent catch for polling
@@ -216,6 +227,48 @@ export default function Dashboard() {
               </Box>
             </Card>
 
+            {/* Monthly Event Usage Progress Card */}
+            <Card radius="300">
+              <Box padding="500">
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <InlineStack gap="200" blockAlign="center">
+                      <Text variant="headingMd" as="h2">
+                        Monthly Event Usage
+                      </Text>
+                      <Badge tone={planName === "Basic" ? "success" : "attention"}>
+                        {planName} Plan
+                      </Badge>
+                    </InlineStack>
+
+                    <Text variant="bodySm" tone="subdued">
+                      {quotaLimit
+                        ? `${monthlyCount.toLocaleString()} / ${quotaLimit.toLocaleString()} events used (${usagePercentage}%)`
+                        : `${monthlyCount.toLocaleString()} events tracked (Unlimited)`}
+                    </Text>
+                  </InlineStack>
+
+                  {quotaLimit ? (
+                    <ProgressBar
+                      progress={usagePercentage}
+                      size="small"
+                      tone={quotaExceeded ? "critical" : usagePercentage > 80 ? "attention" : "primary"}
+                    />
+                  ) : (
+                    <ProgressBar progress={100} size="small" tone="success" />
+                  )}
+
+                  {quotaExceeded && (
+                    <Banner title="50,000 Event Limit Reached" tone="critical">
+                      <p>
+                        You have reached your 50,000 monthly event quota on the Free plan. Event tracking is currently paused until your next monthly billing cycle or until you upgrade to the Basic plan.
+                      </p>
+                    </Banner>
+                  )}
+                </BlockStack>
+              </Box>
+            </Card>
+
             {/* Setup and Next Milestones Progress Card */}
             <Card radius="300">
               <Box padding="500">
@@ -225,7 +278,6 @@ export default function Dashboard() {
                       <Text variant="headingMd" as="h2">
                         Setup and next milestones
                       </Text>
-                      {/* <Badge tone="subdued">3 of 6</Badge> */}
                     </InlineStack>
                   </InlineStack>
 

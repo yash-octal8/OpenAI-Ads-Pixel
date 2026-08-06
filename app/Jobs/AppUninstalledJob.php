@@ -53,21 +53,13 @@ class AppUninstalledJob extends \Osiset\ShopifyApp\Messaging\Jobs\AppUninstalled
                 if (method_exists($shopModel, 'setting')) {
                     $shopModel->setting()->delete();
                 }
-                if (method_exists($shopModel, 'uploadJobs')) {
-                    $shopModel->uploadJobs()->delete();
-                }
-                if (method_exists($shopModel, 'exportJobs')) {
-                    $shopModel->exportJobs()->delete();
-                }
-                if (method_exists($shopModel, 'deleteJobs')) {
-                    $shopModel->deleteJobs()->delete();
-                }
-                if (method_exists($shopModel, 'review')) {
-                    $shopModel->review()->delete();
+                  if (method_exists($shopModel, 'pixelEvents')) {
+                    $shopModel->pixelEvents()->delete();
                 }
             } catch (\Throwable $e) {
                 Log::error("Failed to clean up user data for {$shopDomain}: " . $e->getMessage());
             }
+            
 
             // 3. Clear shop cache
             \Illuminate\Support\Facades\Cache::forget("shop_{$shopDomain}");

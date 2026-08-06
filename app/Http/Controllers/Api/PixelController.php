@@ -3,15 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\ShopSetting;
-use App\Models\PixelEvent;
+use App\Http\Resources\PixelEventResource;
+use App\Http\Resources\ShopSettingResource;
+use App\Repositories\PixelRepository;
 use App\Services\ShopifyService;
-use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PixelController extends Controller
 {
+    protected PixelRepository $pixelRepo;
+
+    public function __construct(PixelRepository $pixelRepo)
+    {
+        $this->pixelRepo = $pixelRepo;
+    }
+
     /**
      * Get pixel settings and initial events list
      */
@@ -19,95 +27,51 @@ class PixelController extends Controller
     {
         $user = Auth::user();
         
-        $settings = ShopSetting::firstOrCreate(
-            ['user_id' => $user->id],
-            [
-                'pixel_id' => '',
-                'capi_key' => '',
-                'advertiser_key' => '',
-                'tracking_enabled' => true,
-                'pixel_helper_enabled' => true,
-            ]
-        );
+        $settings = $this->pixelRepo->getSettingsByUserId($user->id);
+        $events = $this->pixelRepo->getEventsByUserId($user->id, 50);
+        $monthlyCount = $this->pixelRepo->getMonthlyEventCount($user->id);
+        $hasExceededQuota = $this->pixelRepo->hasExceededEventQuota($user);
 
-        $events = PixelEvent::where('user_id', $user->id)
-            ->latest()
-            ->take(50)
-            ->get();
+        $planName = 'Free';
+        if ($user && $user->plan_id) {
+            $plan = \App\Models\Plan::find($user->plan_id);
+            if ($plan) {
+                $planName = $plan->name;
+            }
+        }
 
-        // Seed initial sample events if none exist so Pixel Helper has live data out of the box matching screenshots!
-        // if ($events->isEmpty()) {
-        //     $defaultEvents = [
-        //         [
-        //             'user_id' => $user->id,
-        //             'pixel_id' => $settings->pixel_id ?: '3037692197',
-        //             'event_name' => 'checkout_started',
-        //             'event_type' => 'Standard',
-        //             'event_time' => Carbon::now()->subMinutes(2)->format('H:i:s'),
-        //             'payload' => [
-        //                 'checkout_id' => 'chk_9281749',
-        //                 'cart_token' => 'tok_819284',
-        //                 'currency' => 'USD',
-        //                 'total_price' => 149.99,
-        //                 'item_count' => 2,
-        //                 'page_url' => '/checkout',
-        //             ],
-        //             'status' => 'Loaded',
-        //             'created_at' => Carbon::now()->subMinutes(2),
-        //         ],
-        //         [
-        //             'user_id' => $user->id,
-        //             'pixel_id' => $settings->pixel_id ?: '3037692197',
-        //             'event_name' => 'page_viewed',
-        //             'event_type' => 'Standard',
-        //             'event_time' => Carbon::now()->subMinutes(2)->format('H:i:s'),
-        //             'payload' => [
-        //                 'page_title' => 'Checkout Page - OpenAI Store',
-        //                 'page_location' => 'https://openai-store.myshopify.com/checkout',
-        //                 'referrer' => 'https://openai-store.myshopify.com/cart',
-        //                 'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-        //             ],
-        //             'status' => 'Loaded',
-        //             'created_at' => Carbon::now()->subMinutes(2),
-        //         ],
-        //     ];
-
-        //     foreach ($defaultEvents as $evtData) {
-        //         PixelEvent::create($evtData);
-        //     }
-
-        //     $events = PixelEvent::where('user_id', $user->id)->latest()->take(50)->get();
-        // }
+        $isFree = (strtolower($planName) === 'free');
+        $quotaLimit = $isFree ? 50000 : null;
+        $usagePercentage = $quotaLimit ? min(100, round(($monthlyCount / $quotaLimit) * 100, 1)) : 0;
 
         return response()->json([
             'success' => true,
-            'settings' => [
-                'pixel_id' => $settings->pixel_id ?: '',
-                'capi_key' => $settings->capi_key ?: '',
-                'advertiser_key' => $settings->advertiser_key ?: '',
-                'tracking_enabled' => (bool)$settings->tracking_enabled,
-                'pixel_helper_enabled' => (bool)$settings->pixel_helper_enabled,
-            ],
-            'events' => $events,
+            'settings' => new ShopSettingResource($settings),
+            'events' => PixelEventResource::collection($events),
             'events_count' => $events->count(),
+            'monthly_event_count' => $monthlyCount,
+            'plan_name' => $planName,
+            'quota_limit' => $quotaLimit,
+            'usage_percentage' => $usagePercentage,
+            'quota_exceeded' => $hasExceededQuota,
         ]);
     }
 
+    /**
+     * Save pixel settings and register Shopify Web Pixel
+     */
     public function saveSettings(Request $request)
     {
         $user = Auth::user();
         $pixelId = $request->input('pixel_id');
 
-        $settings = ShopSetting::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'pixel_id' => $pixelId,
-                'capi_key' => $request->input('capi_key'),
-                'advertiser_key' => $request->input('advertiser_key'),
-                'tracking_enabled' => $request->boolean('tracking_enabled', true),
-                'pixel_helper_enabled' => $request->boolean('pixel_helper_enabled', true),
-            ]
-        );
+        $settings = $this->pixelRepo->updateOrCreateSettings($user->id, [
+            'pixel_id' => $pixelId,
+            'capi_key' => $request->input('capi_key'),
+            'advertiser_key' => $request->input('advertiser_key'),
+            'tracking_enabled' => $request->boolean('tracking_enabled', true),
+            'pixel_helper_enabled' => $request->boolean('pixel_helper_enabled', true),
+        ]);
 
         try {
             $shopifyService = new ShopifyService($user);
@@ -119,10 +83,13 @@ class PixelController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Pixel settings saved and registered in Shopify Customer Events!',
-            'settings' => $settings,
+            'settings' => new ShopSettingResource($settings),
         ]);
     }
 
+    /**
+     * Public endpoint to track storefront events
+     */
     public function publicTrackEvent(Request $request)
     {
         $pixelId = $request->input('pixel_id', '');
@@ -130,10 +97,22 @@ class PixelController extends Controller
         $eventType = $request->input('event_type', 'Standard');
         $payload = $request->input('payload', $request->all());
 
-        $setting = ShopSetting::where('pixel_id', $pixelId)->first();
+        $setting = $this->pixelRepo->getSettingsByPixelId($pixelId);
+        $user = $setting ? \App\Models\User::find($setting->user_id) : null;
+
+        if ($user && $this->pixelRepo->hasExceededEventQuota($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Monthly event quota of 50,000 events reached on Free plan. Upgrade to Basic plan for unlimited events.',
+                'quota_exceeded' => true,
+            ], 429)->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
+        }
+
         $userId = $setting ? $setting->user_id : 1;
 
-        $event = PixelEvent::create([
+        $event = $this->pixelRepo->createEvent([
             'user_id' => $userId,
             'pixel_id' => $pixelId,
             'event_name' => $eventName,
@@ -146,7 +125,7 @@ class PixelController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Event captured successfully',
-            'event' => $event,
+            'event' => new PixelEventResource($event),
         ])->header('Access-Control-Allow-Origin', '*')
           ->header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
           ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
@@ -160,10 +139,17 @@ class PixelController extends Controller
             ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
     }
 
+    /**
+     * Authenticated endpoint to track events
+     */
     public function trackEvent(Request $request)
     {
         $user = Auth::user();
-        $settings = ShopSetting::where('user_id', $user->id)->first();
+        $settings = $this->pixelRepo->getSettingsByUserId($user->id);
+
+        if ($this->pixelRepo->hasExceededEventQuota($user)) {
+            return $this->sendError('Monthly event quota of 50,000 events reached on Free plan. Upgrade to Basic plan ($29/mo) for unlimited events.', 429);
+        }
 
         $pixelId = $request->input('pixel_id') ?: ($settings ? $settings->pixel_id : '');
         $eventName = $request->input('event_name', 'page_viewed');
@@ -174,7 +160,7 @@ class PixelController extends Controller
             $payload = $this->generateMockPayload($eventName);
         }
 
-        $event = PixelEvent::create([
+        $event = $this->pixelRepo->createEvent([
             'user_id' => $user->id,
             'pixel_id' => $pixelId,
             'event_name' => $eventName,
@@ -186,19 +172,19 @@ class PixelController extends Controller
 
         return response()->json([
             'success' => true,
-            'event' => $event,
+            'event' => new PixelEventResource($event),
         ]);
     }
 
+    /**
+     * Clear tracked pixel events for current user
+     */
     public function clearEvents(Request $request)
     {
         $user = Auth::user();
-        PixelEvent::where('user_id', $user->id)->delete();
+        $this->pixelRepo->clearEventsByUserId($user->id);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Events cleared successfully',
-        ]);
+        return $this->sendSuccess('Events cleared successfully');
     }
 
     private function generateMockPayload($eventName)

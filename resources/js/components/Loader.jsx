@@ -1,6 +1,6 @@
-import { BlockStack, Box, Text } from "@shopify/polaris";
+import { BlockStack, Box, Spinner, Text } from "@shopify/polaris";
 
-export function Loader({message}) {
+export function Loader({ message }) {
   return (
     <div
       style={{
@@ -23,23 +23,13 @@ export function Loader({message}) {
 
       <Box style={{ textAlign: "center" }}>
         <BlockStack align="center" gap="400">
-          <img
-            src="/Images/Octilo-logo.png"
-            alt="Octilo"
-            style={{
-              width: "120px",
-              height: "auto",
-              margin: "0 auto",
-              animation: "pulse-logo 1.5s infinite ease-in-out",
-            }}
-          />
           <BlockStack gap="100">
             <Text variant="headingMd" as="h2">
-              Loading...
+              <Spinner></Spinner>
             </Text>
 
             <Text variant="bodySm" tone="subdued">
-              {message ? message : "Please wait while we prepare your data."}
+              Loading...
             </Text>
           </BlockStack>
         </BlockStack>

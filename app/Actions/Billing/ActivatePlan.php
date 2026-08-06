@@ -23,18 +23,6 @@ use Osiset\ShopifyApp\Services\ChargeHelper;
 
 class ActivatePlan extends \Osiset\ShopifyApp\Actions\ActivatePlan
 {
-    protected $chargeHelper;
-
-    protected $cancelCurrentPlan;
-
-    protected $shopQuery;
-
-    protected $chargeCommand;
-
-    protected $shopCommand;
-
-    protected $planQuery;
-
     public function __construct(
         callable $cancelCurrentPlanAction,
         ChargeHelper $chargeHelper,
@@ -43,12 +31,14 @@ class ActivatePlan extends \Osiset\ShopifyApp\Actions\ActivatePlan
         IChargeCommand $chargeCommand,
         IShopCommand $shopCommand
     ) {
-        $this->cancelCurrentPlan = $cancelCurrentPlanAction;
-        $this->chargeHelper = $chargeHelper;
-        $this->shopQuery = $shopQuery;
-        $this->planQuery = $planQuery;
-        $this->chargeCommand = $chargeCommand;
-        $this->shopCommand = $shopCommand;
+        parent::__construct(
+            $cancelCurrentPlanAction,
+            $chargeHelper,
+            $shopQuery,
+            $planQuery,
+            $chargeCommand,
+            $shopCommand
+        );
     }
 
     public function __invoke(ShopId $shopId, PlanId $planId, ChargeReference $chargeRef, string $host): ChargeId

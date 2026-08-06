@@ -28,12 +28,12 @@ class ChargeController extends Controller
         $host = urldecode($request->get('host'));
 
         if (!$shop) {
-            return response()->json(['error' => 'Shop not found'], 404);
+            return $this->sendError('Shop not found', 404);
         }
 
         $plan = Plan::find($planId);
         if (!$plan) {
-            return response()->json(['error' => 'Plan not found'], 404);
+            return $this->sendError('Plan not found', 404);
         }
 
         $chargeData = $this->getPlanUrl($shop, $plan, $host);
@@ -67,7 +67,7 @@ class ChargeController extends Controller
             $planDetails = [
                 'name' => $plan->name,
                 'price' => $plan->price,
-                'return_url' => "https://admin.shopify.com/store/".explode('.', $shop->name)[0]."/apps/smart-upload/plan",
+                'return_url' => "https://admin.shopify.com/store/" . explode('.', $shop->name)[0] . "/apps/openai-ads-pixel/plan",
                 'test' => $plan->test,
                 'trial_days' => $plan->trial_days,
             ];
@@ -167,11 +167,11 @@ class ChargeController extends Controller
         $response = $shopifyService->execute($query, $variables);
 
         if (isset($response['errors']) && $response['errors'] === true) {
-             return ['confirmationUrl' => null, 'userErrors' => [['message' => $response['body'] ?? 'Unknown error']]];
+            return ['confirmationUrl' => null, 'userErrors' => [['message' => $response['body'] ?? 'Unknown error']]];
         }
 
         if (isset($response['body']['data']['appSubscriptionCreate']['userErrors']) && count($response['body']['data']['appSubscriptionCreate']['userErrors']) > 0) {
-             return ['confirmationUrl' => null, 'userErrors' => $response['body']['data']['appSubscriptionCreate']['userErrors']];
+            return ['confirmationUrl' => null, 'userErrors' => $response['body']['data']['appSubscriptionCreate']['userErrors']];
         }
 
         return $response['body']['data']['appSubscriptionCreate'] ?? ['confirmationUrl' => null];
