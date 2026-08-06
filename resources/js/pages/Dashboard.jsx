@@ -32,7 +32,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchPixelData();
-    // Poll every 3 seconds so Page views & counts update live as shoppers browse
     const interval = setInterval(() => {
       fetchPixelDataSilently();
     }, 3000);
@@ -64,7 +63,7 @@ export default function Dashboard() {
         setQuotaExceeded(Boolean(res.data.quota_exceeded));
       }
     } catch (e) {
-      // silent catch for polling
+      console.log(e);
     }
   };
 
@@ -114,13 +113,13 @@ export default function Dashboard() {
         <Page
           title="Performance"
           subtitle="Real-time OpenAI Ads & Web Pixel tracking performance"
-          secondaryActions={[
-            {
-              content: "Clear Event Logs",
-              onAction: handleClearEvents,
-            },
-          ]}
           fullWidth
+          // secondaryActions={[
+          //   {
+          //     content: "Clear Event Logs",
+          //     onAction: handleClearEvents,
+          //   },
+          // ]}
         >
           <BlockStack gap="500">
             {/* Warning Banner if CAPI key missing or rejected */}

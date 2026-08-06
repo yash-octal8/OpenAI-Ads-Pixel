@@ -9,6 +9,7 @@ import AppLayout from './layouts/AppLayout';
 
 // App Pages
 import Dashboard from './pages/Dashboard';
+import SetupGuide from './pages/SetupGuide';
 import Settings from './pages/Settings';
 import Plan from './pages/Plan';
 import Billing from './pages/Billing';
@@ -21,6 +22,7 @@ const App = () => {
           <Routes>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/setup-guide" element={<SetupGuide />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/billing/:plan?" element={<Billing />} />

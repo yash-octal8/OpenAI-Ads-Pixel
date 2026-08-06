@@ -20,9 +20,6 @@ class PixelController extends Controller
         $this->pixelRepo = $pixelRepo;
     }
 
-    /**
-     * Get pixel settings and initial events list
-     */
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -57,9 +54,6 @@ class PixelController extends Controller
         ]);
     }
 
-    /**
-     * Save pixel settings and register Shopify Web Pixel
-     */
     public function saveSettings(Request $request)
     {
         $user = Auth::user();
@@ -73,11 +67,13 @@ class PixelController extends Controller
             'pixel_helper_enabled' => $request->boolean('pixel_helper_enabled', true),
         ]);
 
-        try {
-            $shopifyService = new ShopifyService($user);
-            $shopifyService->createWebPixel($pixelId);
-        } catch (\Throwable $e) {
-            \Log::info("Web Pixel registration attempt: " . $e->getMessage());
+        if ($pixelId) {
+            try {
+                $shopifyService = new ShopifyService($user);
+                $shopifyService->createWebPixel($pixelId);
+            } catch (\Throwable $e) {
+                \Log::info("Web Pixel registration attempt: " . $e->getMessage());
+            }
         }
 
         return response()->json([
@@ -87,9 +83,6 @@ class PixelController extends Controller
         ]);
     }
 
-    /**
-     * Public endpoint to track storefront events
-     */
     public function publicTrackEvent(Request $request)
     {
         $pixelId = $request->input('pixel_id', '');
@@ -139,9 +132,7 @@ class PixelController extends Controller
             ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
     }
 
-    /**
-     * Authenticated endpoint to track events
-     */
+
     public function trackEvent(Request $request)
     {
         $user = Auth::user();
@@ -176,9 +167,7 @@ class PixelController extends Controller
         ]);
     }
 
-    /**
-     * Clear tracked pixel events for current user
-     */
+
     public function clearEvents(Request $request)
     {
         $user = Auth::user();

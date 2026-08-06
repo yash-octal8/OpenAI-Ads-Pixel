@@ -11,17 +11,11 @@ class ShopifyService
 {
   protected User $shop;
 
-  /**
-   * Initialize ShopifyService with user credentials.
-   */
   public function __construct(?User $shop)
   {
     $this->shop = $shop;
   }
 
-  /**
-   * Get Shopify Store Details.
-   */
   public function getShopDetails(): array
   {
     $query = <<<'GQL'
@@ -47,9 +41,6 @@ class ShopifyService
     return $this->execute($query);
   }
 
-  /**
-   * Create or update Web Pixel in Shopify Customer Events (Settings > Customer Events).
-   */
   public function createWebPixel(string $pixelId): array
   {
     $mutation = <<<'GQL'
@@ -114,9 +105,6 @@ class ShopifyService
     return $this->execute($query);
   }
 
-  /**
-   * Send a GraphQL request to Shopify with error handling and logging.
-   */
   public function execute($query, $input = [])
   {
     $response = [];
@@ -129,7 +117,6 @@ class ShopifyService
 
         $response = json_decode(json_encode($response), true);
         $retry = 0;
-
       } catch (\Throwable $e) {
         $retry--;
         \Log::error("Shopify GraphQL execute exception: " . $e->getMessage() . " File: " . $e->getFile() . ":" . $e->getLine());

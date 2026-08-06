@@ -8,9 +8,6 @@ use Carbon\Carbon;
 
 class PixelRepository
 {
-    /**
-     * Get or create settings for a user.
-     */
     public function getSettingsByUserId(int $userId): ShopSetting
     {
         return ShopSetting::firstOrCreate(
@@ -25,9 +22,6 @@ class PixelRepository
         );
     }
 
-    /**
-     * Update or create settings for a user.
-     */
     public function updateOrCreateSettings(int $userId, array $data): ShopSetting
     {
         return ShopSetting::updateOrCreate(
@@ -42,17 +36,11 @@ class PixelRepository
         );
     }
 
-    /**
-     * Get settings by Pixel ID.
-     */
     public function getSettingsByPixelId(string $pixelId): ?ShopSetting
     {
         return ShopSetting::where('pixel_id', $pixelId)->first();
     }
 
-    /**
-     * Get latest events for a user.
-     */
     public function getEventsByUserId(int $userId, int $limit = 50)
     {
         return PixelEvent::where('user_id', $userId)
@@ -61,9 +49,7 @@ class PixelRepository
             ->get();
     }
 
-    /**
-     * Create a new pixel event.
-     */
+
     public function createEvent(array $data): PixelEvent
     {
         return PixelEvent::create([
@@ -77,17 +63,12 @@ class PixelRepository
         ]);
     }
 
-    /**
-     * Clear events for a user.
-     */
     public function clearEventsByUserId(int $userId): bool
     {
         return PixelEvent::where('user_id', $userId)->delete();
     }
 
-    /**
-     * Get monthly event count for a user.
-     */
+
     public function getMonthlyEventCount(int $userId): int
     {
         return PixelEvent::where('user_id', $userId)
@@ -96,9 +77,7 @@ class PixelRepository
             ->count();
     }
 
-    /**
-     * Check if user has exceeded the 50,000 monthly event limit on Free plan.
-     */
+
     public function hasExceededEventQuota($user): bool
     {
         if (!$user) {
