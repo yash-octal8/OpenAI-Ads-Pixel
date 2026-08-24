@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\ShopSetting;
-use App\Models\Plan;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;

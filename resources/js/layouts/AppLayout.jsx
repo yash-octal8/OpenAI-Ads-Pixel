@@ -17,9 +17,6 @@ export default function AppLayout() {
         <Link to="/event-logs">
           Event Logs
         </Link>
-        <Link to="/setup-guide">
-          Setup Guide
-        </Link>
         <Link to="/settings">
           Settings
         </Link>
@@ -27,7 +24,7 @@ export default function AppLayout() {
           Plans
         </Link>
         <Link to="/setup-guide">
-          Setup guide
+          Setup Guide
         </Link>
       </NavMenu>
 

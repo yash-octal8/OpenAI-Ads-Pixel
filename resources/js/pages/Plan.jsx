@@ -268,10 +268,6 @@ function PlanPageInner({ data, onRefresh }) {
                 );
               })}
             </div>
-
-            <div className="plan-footer-note">
-              <span>🔒 Billed securely through Shopify Billing API. Cancel or change anytime in Shopify Settings.</span>
-            </div>
           </div>
         </Page>
       </Box>

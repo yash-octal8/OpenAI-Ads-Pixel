@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Page,
   Card,
@@ -14,7 +14,6 @@ import {
   Toast,
   Modal,
 } from "@shopify/polaris";
-import { ViewIcon, HideIcon } from "@shopify/polaris-icons";
 import api from "../api";
 import { Loader } from "../components/Loader";
 
@@ -28,8 +27,6 @@ export default function Settings() {
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastError, setToastError] = useState(false);
-  const [showCapiKey, setShowCapiKey] = useState(false);
-  const [showAdvertiserKey, setShowAdvertiserKey] = useState(false);
 
   useEffect(() => {
     fetchSettings();
