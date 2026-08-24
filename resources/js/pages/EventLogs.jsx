@@ -150,18 +150,23 @@ export default function EventLogs() {
   return (
     <Frame>
       <Box style={{ padding: "2rem 1.5rem", margin: "0 auto", maxWidth: "1200px" }}>
-        <Page
-          title="Event Logs & Debugger"
-          subtitle="Real-time log of every storefront browser & server CAPI event sent to OpenAI."
-          secondaryActions={[
-            {
-              content: "Clear Event Logs",
-              onAction: handleClearLogs,
-            },
-          ]}
-          fullWidth
-        >
+        <Page fullWidth>
           <BlockStack gap="500">
+            {/* Custom Header Bar */}
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text variant="headingLg" as="h1">
+                  Event Logs & Debugger
+                </Text>
+                <Text variant="bodyMd" tone="subdued">
+                  Real-time log of every storefront browser & server CAPI event sent to OpenAI.
+                </Text>
+              </BlockStack>
+
+              <Button onClick={handleClearLogs}>
+                Clear Event Logs
+              </Button>
+            </InlineStack>
             {/* Filters Bar */}
             <Card radius="300">
               <Box padding="400">

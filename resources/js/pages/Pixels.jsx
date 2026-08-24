@@ -198,87 +198,98 @@ export default function Pixels() {
   return (
     <Frame>
       <Box style={{ padding: "2rem 1.5rem", margin: "0 auto", maxWidth: "1200px" }}>
-        <Page
-          title="Pixels"
-          subtitle="Create and manage multiple OpenAI tracking pixels for different campaigns and markets."
-          primaryAction={{
-            content: "Add new pixel",
-            onAction: () => handleOpenModal(),
-          }}
-          fullWidth
-        >
+        <Page fullWidth>
           <BlockStack gap="500">
-            {/* Status Summary Banner */}
-            <Card radius="300">
-              <Box padding="500">
-                <InlineStack align="space-between" blockAlign="center">
-                  <InlineStack gap="500" blockAlign="center">
-                    <Box>
-                      <Text variant="bodySm" tone="subdued">All Pixels</Text>
-                      <Text variant="headingXl" as="p">{totalCount}</Text>
-                    </Box>
-                    <Box style={{ borderLeft: "1px solid #e1e3e5", paddingLeft: "24px" }}>
-                      <Text variant="bodySm" tone="subdued">Active</Text>
-                      <Text variant="headingXl" as="p" tone="success">{activeCount}</Text>
-                    </Box>
-                    <Box style={{ borderLeft: "1px solid #e1e3e5", paddingLeft: "24px" }}>
-                      <Text variant="bodySm" tone="subdued">Testing</Text>
-                      <Text variant="headingXl" as="p" tone="attention">{testingCount}</Text>
-                    </Box>
-                    <Box style={{ borderLeft: "1px solid #e1e3e5", paddingLeft: "24px" }}>
-                      <Text variant="bodySm" tone="subdued">Paused</Text>
-                      <Text variant="headingXl" as="p" tone="subdued">{pausedCount}</Text>
+
+
+            {/* Custom Header Bar */}
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text variant="headingLg" as="h1">
+                  Pixels
+                </Text>
+                <Text variant="bodyMd" tone="subdued">
+                  Create and manage multiple OpenAI tracking pixels for different campaigns and markets.
+                </Text>
+              </BlockStack>
+
+              <Button onClick={handleOpenModal} variant="primary">
+                Add new pixel
+              </Button>
+            </InlineStack>
+            <BlockStack gap="500">
+              {/* Status Summary Banner */}
+              <Card radius="300">
+                <Box padding="500">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <InlineStack gap="500" blockAlign="center">
+                      <Box>
+                        <Text variant="bodySm" tone="subdued">All Pixels</Text>
+                        <Text variant="headingXl" as="p">{totalCount}</Text>
+                      </Box>
+                      <Box style={{ borderLeft: "1px solid #e1e3e5", paddingLeft: "24px" }}>
+                        <Text variant="bodySm" tone="subdued">Active</Text>
+                        <Text variant="headingXl" as="p" tone="success">{activeCount}</Text>
+                      </Box>
+                      <Box style={{ borderLeft: "1px solid #e1e3e5", paddingLeft: "24px" }}>
+                        <Text variant="bodySm" tone="subdued">Testing</Text>
+                        <Text variant="headingXl" as="p" tone="attention">{testingCount}</Text>
+                      </Box>
+                      <Box style={{ borderLeft: "1px solid #e1e3e5", paddingLeft: "24px" }}>
+                        <Text variant="bodySm" tone="subdued">Paused</Text>
+                        <Text variant="headingXl" as="p" tone="subdued">{pausedCount}</Text>
+                      </Box>
+                    </InlineStack>
+
+                    <Box style={{ width: "320px" }}>
+                      <TextField
+                        placeholder="Search by name or pixel ID..."
+                        value={search}
+                        onChange={setSearch}
+                        clearButton
+                        onClearButtonClick={() => setSearch("")}
+                        autoComplete="off"
+                      />
                     </Box>
                   </InlineStack>
-
-                  <Box style={{ width: "320px" }}>
-                    <TextField
-                      placeholder="Search by name or pixel ID..."
-                      value={search}
-                      onChange={setSearch}
-                      clearButton
-                      onClearButtonClick={() => setSearch("")}
-                      autoComplete="off"
-                    />
-                  </Box>
-                </InlineStack>
-              </Box>
-            </Card>
-
-            {/* Pixels List Table */}
-            <Card radius="300">
-              {filteredPixels.length > 0 ? (
-                <IndexTable
-                  resourceName={resourceName}
-                  itemCount={filteredPixels.length}
-                  selectedItemsCount={
-                    allResourcesSelected ? "All" : selectedResources.length
-                  }
-                  onSelectionChange={handleSelectionChange}
-                  headings={[
-                    { title: "Pixel Name" },
-                    { title: "GPT Pixel ID" },
-                    { title: "Status" },
-                    { title: "Coverage" },
-                    { title: "Actions" },
-                  ]}
-                >
-                  {rowMarkup}
-                </IndexTable>
-              ) : (
-                <Box padding="600">
-                  <BlockStack gap="300" inlineAlign="center">
-                    <Text variant="headingMd" as="h3">No pixels configured yet</Text>
-                    <Text variant="bodyMd" tone="subdued">
-                      Click "Add new pixel" above to configure your first OpenAI Ads Pixel.
-                    </Text>
-                    <Button variant="primary" onClick={() => handleOpenModal()}>
-                      Add new pixel
-                    </Button>
-                  </BlockStack>
                 </Box>
-              )}
-            </Card>
+              </Card>
+
+              {/* Pixels List Table */}
+              <Card radius="300">
+                {filteredPixels.length > 0 ? (
+                  <IndexTable
+                    resourceName={resourceName}
+                    itemCount={filteredPixels.length}
+                    selectedItemsCount={
+                      allResourcesSelected ? "All" : selectedResources.length
+                    }
+                    onSelectionChange={handleSelectionChange}
+                    headings={[
+                      { title: "Pixel Name" },
+                      { title: "GPT Pixel ID" },
+                      { title: "Status" },
+                      { title: "Coverage" },
+                      { title: "Actions" },
+                    ]}
+                  >
+                    {rowMarkup}
+                  </IndexTable>
+                ) : (
+                  <Box padding="600">
+                    <BlockStack gap="300" inlineAlign="center">
+                      <Text variant="headingMd" as="h3">No pixels configured yet</Text>
+                      <Text variant="bodyMd" tone="subdued">
+                        Click "Add new pixel" above to configure your first OpenAI Ads Pixel.
+                      </Text>
+                      <Button variant="primary" onClick={() => handleOpenModal()}>
+                        Add new pixel
+                      </Button>
+                    </BlockStack>
+                  </Box>
+                )}
+              </Card>
+            </BlockStack>
           </BlockStack>
         </Page>
       </Box>
