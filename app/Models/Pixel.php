@@ -5,32 +5,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PixelEvent extends Model
+class Pixel extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'user_id',
+        'name',
         'pixel_id',
-        'event_id',
-        'event_name',
-        'event_type',
-        'source',
-        'oppref',
-        'order_id',
-        'event_time',
-        'payload',
-        'response_code',
-        'response_body',
+        'capi_key',
         'status',
+        'test_mode',
+        'coverage_type',
+        'target_selection',
     ];
 
     protected $casts = [
-        'payload' => 'array',
+        'test_mode' => 'boolean',
+        'target_selection' => 'array',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function events()
+    {
+        return $this->hasMany(PixelEvent::class, 'pixel_id', 'pixel_id');
     }
 }

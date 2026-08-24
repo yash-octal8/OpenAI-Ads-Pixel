@@ -5,28 +5,28 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PixelEvent extends Model
+class Attribution extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'user_id',
         'pixel_id',
+        'shopify_order_id',
+        'order_number',
         'event_id',
-        'event_name',
-        'event_type',
-        'source',
         'oppref',
-        'order_id',
+        'campaign_id',
+        'ad_group_id',
+        'ad_id',
+        'revenue',
+        'currency',
         'event_time',
-        'payload',
-        'response_code',
-        'response_body',
-        'status',
     ];
 
     protected $casts = [
-        'payload' => 'array',
+        'revenue' => 'float',
+        'event_time' => 'datetime',
     ];
 
     public function user()

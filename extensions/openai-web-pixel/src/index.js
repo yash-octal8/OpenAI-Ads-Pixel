@@ -2,32 +2,54 @@ import { register } from "@shopify/web-pixels-extension";
 
 register(({ analytics, browser, init, settings }) => {
   const pixelId = settings.pixel_id || "";
-  const appEndpoint = "https://openai-ads-pixel.test/api/events";
+  const appEndpoint = "https://supersentimentally-intercommunicable-charolette.ngrok-free.dev/api/events";
 
   console.log("[OpenAI Web Pixel] Customer Events initialized with Pixel ID:", pixelId);
 
+  // Helper to extract or persist oppref (ChatGPT click reference)
+  let oppref = "";
+  try {
+    const searchParams = new URLSearchParams(browser.location?.search || "");
+    oppref = searchParams.get("oppref") || searchParams.get("openai_click_ref") || "";
+    if (oppref && browser.localStorage) {
+      browser.localStorage.setItem("openai_oppref", oppref);
+    } else if (browser.localStorage) {
+      oppref = browser.localStorage.getItem("openai_oppref") || "";
+    }
+  } catch (e) {
+    console.log("[Web Pixel] oppref storage access:", e);
+  }
+
   // Helper to publish event to backend app database & window overlay
-  const broadcastEvent = (name, payload, type = "Standard") => {
+  const broadcastEvent = (name, payload, type = "Standard", customEventId = null) => {
+    const eventId = customEventId || "evt_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+    
     const evtData = {
-      id: "evt_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      id: eventId,
       pixel_id: pixelId,
       event_name: name,
       event_type: type,
       event_time: new Date().toTimeString().split(" ")[0],
-      payload: payload || {},
+      oppref: oppref,
+      payload: { ...payload, oppref: oppref },
       status: "Loaded",
     };
 
-    // 1. Post to App Backend API so Dashboard metrics & live counts update automatically
+    // 1. Post to App Backend API so Dashboard metrics & live counts update automatically with deduplication ID & CAPI trigger
     try {
       fetch(appEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true"
+        },
         body: JSON.stringify({
           pixel_id: pixelId,
+          event_id: eventId,
           event_name: name,
           event_type: type,
-          payload: payload || {},
+          oppref: oppref,
+          payload: evtData.payload,
         }),
         mode: "cors",
         keepalive: true,
@@ -101,18 +123,21 @@ register(({ analytics, browser, init, settings }) => {
     });
   });
 
-  // 5. Checkout Completed (Order Completed) Customer Event
+  // 5. Checkout Completed (Order Completed) Customer Event with deterministic deduplication event_id
   analytics.subscribe("checkout_completed", (event) => {
     console.log("[Customer Event] checkout_completed:", event);
     const checkout = event.data.checkout;
+    const orderId = checkout?.order?.id || checkout?.token;
+    const deduplicationEventId = `purchase_${orderId}`;
+
     broadcastEvent("order_completed", {
-      order_id: checkout?.order?.id,
+      order_id: orderId,
       checkout_id: checkout?.token,
       currency: checkout?.currencyCode,
       total_price: checkout?.totalPrice?.amount,
       subtotal: checkout?.subtotalPrice?.amount,
       tax: checkout?.totalTax?.amount,
       timestamp: event.timestamp,
-    });
+    }, "Standard", deduplicationEventId);
   });
 });

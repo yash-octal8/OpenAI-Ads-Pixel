@@ -9,6 +9,9 @@ import AppLayout from './layouts/AppLayout';
 
 // App Pages
 import Dashboard from './pages/Dashboard';
+import Pixels from './pages/Pixels';
+import Analytics from './pages/Analytics';
+import EventLogs from './pages/EventLogs';
 import SetupGuide from './pages/SetupGuide';
 import Settings from './pages/Settings';
 import Plan from './pages/Plan';
@@ -22,6 +25,9 @@ const App = () => {
           <Routes>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/pixels" element={<Pixels />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/event-logs" element={<EventLogs />} />
               <Route path="/setup-guide" element={<SetupGuide />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/plan" element={<Plan />} />

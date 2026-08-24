@@ -16,6 +16,32 @@ class PlanController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+
+        // Automatically assign Free Plan if user has no plan assigned yet
+        if ($user && !$user->plan_id) {
+            $freePlan = Plan::where('name', 'Free')->first();
+            if ($freePlan) {
+                $user->plan_id = $freePlan->id;
+                $user->shopify_freemium = true;
+                $user->save();
+
+                DB::table('charges')->updateOrInsert(
+                    ['user_id' => $user->id, 'plan_id' => $freePlan->id],
+                    [
+                        'charge_id' => 0,
+                        'type' => 'RECURRING',
+                        'status' => 'ACTIVE',
+                        'name' => $freePlan->name,
+                        'price' => 0.00,
+                        'interval' => 'EVERY_30_DAYS',
+                        'test' => true,
+                        'activated_on' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+        }
         
         $dbPlans = Plan::with(['features' => function($q) {
             $q->orderBy('display_order', 'asc');
@@ -50,7 +76,7 @@ class PlanController extends Controller
 
         return response()->json([
             'success'     => true,
-            'currentPlan' => $currentPlanName,
+            'currentPlan' => $currentPlanName ?? 'Free',
             'shop'        => $user ? $user->name : '',
             'plans'       => $formattedPlans,
         ]);
@@ -60,12 +86,12 @@ class PlanController extends Controller
     {
         $user = auth()->user();
         if (!$user) {
-            return $this->sendError('Unauthorized', 401);
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
         $freePlan = Plan::where('name', 'Free')->first();
         if (!$freePlan) {
-            return $this->sendError('Free Plan not found', 404);
+            return response()->json(['success' => false, 'message' => 'Free Plan not found'], 404);
         }
 
         try {
@@ -76,20 +102,21 @@ class PlanController extends Controller
                 $user->shopify_freemium = true;
                 $user->save();
 
-                DB::table('charges')->insert([
-                    'user_id' => $user->id,
-                    'plan_id' => $freePlan->id,
-                    'charge_id' => 0,
-                    'type' => 'RECURRING',
-                    'status' => 'ACTIVE',
-                    'name' => $freePlan->name,
-                    'price' => 0.00,
-                    'interval' => 'EVERY_30_DAYS',
-                    'test' => true,
-                    'activated_on' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                DB::table('charges')->updateOrInsert(
+                    ['user_id' => $user->id, 'plan_id' => $freePlan->id],
+                    [
+                        'charge_id' => 0,
+                        'type' => 'RECURRING',
+                        'status' => 'ACTIVE',
+                        'name' => $freePlan->name,
+                        'price' => 0.00,
+                        'interval' => 'EVERY_30_DAYS',
+                        'test' => true,
+                        'activated_on' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
             });
 
             // Dispatch PlanActivatedEvent for free plan manually to trigger notification / event listeners
@@ -101,10 +128,10 @@ class PlanController extends Controller
 
             Log::info('Free Plan Subscribed Successfully', [$user]);
 
-            return $this->sendSuccess('Free Plan Subscribed Successfully');
+            return response()->json(['success' => true, 'message' => 'Free Plan Subscribed Successfully']);
         } catch (\Throwable $e) {
             Log::error('chooseFreePlan Error: ' . $e->getMessage());
-            return $this->sendError('Failed to subscribe to Free plan', 500);
+            return response()->json(['success' => false, 'message' => 'Failed to subscribe to Free plan'], 500);
         }
     }
 

@@ -12,7 +12,7 @@ import {
   Badge,
   Frame,
   Toast,
-  Divider,
+  Modal,
 } from "@shopify/polaris";
 import { ViewIcon, HideIcon } from "@shopify/polaris-icons";
 import api from "../api";
@@ -22,8 +22,10 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [pixelId, setPixelId] = useState("");
   const [capiKey, setCapiKey] = useState("");
-  const [advertiserKey, setAdvertiserKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [testModalOpen, setTestModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastError, setToastError] = useState(false);
   const [showCapiKey, setShowCapiKey] = useState(false);
@@ -40,7 +42,6 @@ export default function Settings() {
       if (res.data.success && res.data.settings) {
         setPixelId(res.data.settings.pixel_id || "");
         setCapiKey(res.data.settings.capi_key || "");
-        setAdvertiserKey(res.data.settings.advertiser_key || "");
       }
     } catch (e) {
       console.error("Failed to load pixel settings", e);
@@ -55,7 +56,6 @@ export default function Settings() {
       const res = await api.post("/pixel/settings", {
         pixel_id: pixelId,
         capi_key: capiKey,
-        advertiser_key: advertiserKey,
       });
 
       if (res.data.success) {
@@ -73,6 +73,28 @@ export default function Settings() {
     }
   };
 
+  const handleTestConnection = async () => {
+    try {
+      setTestingConnection(true);
+      const res = await api.post("/pixel/test-connection", {
+        pixel_id: pixelId,
+        capi_key: capiKey,
+      });
+
+      setTestResult(res.data);
+      setTestModalOpen(true);
+    } catch (e) {
+      setTestResult({
+        success: false,
+        message: "Failed to perform test connection. Please check your credentials.",
+        details: { capi: false, pixel: Boolean(pixelId), credentials: false },
+      });
+      setTestModalOpen(true);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
   if (loading) {
     return <Loader />;
   }
@@ -81,13 +103,13 @@ export default function Settings() {
 
   return (
     <Frame>
-      <Box style={{ padding: "2rem 1rem", margin: "0 auto", maxWidth: "900px" }}>
+      <Box style={{ padding: "2rem 1.5rem", margin: "0 auto", maxWidth: "1200px" }}>
         <Page title="Settings">
           <BlockStack gap="500">
-            {/* Warning Banner when keys missing/rejected */}
+            {/* Warning Banner when keys missing */}
             {!isConnected && (
-              <Banner title="OpenAI is rejecting your events" status="critical">
-                <p>Generate a new Conversions API key in Ads Manager and paste it below.</p>
+              <Banner title="OpenAI Credentials Required" status="warning">
+                <p>Enter your OpenAI Pixel ID & Conversions API key below to activate conversion tracking.</p>
               </Banner>
             )}
 
@@ -103,13 +125,13 @@ export default function Settings() {
                       {isConnected ? (
                         <Badge tone="success">Connected</Badge>
                       ) : (
-                        <Badge tone="critical">Key rejected</Badge>
+                        <Badge tone="attention">Action Required</Badge>
                       )}
                     </InlineStack>
                   </InlineStack>
 
                   <Text variant="bodyMd" tone="subdued">
-                    Everything Reach needs from OpenAI Ads Manager, in one place. We use these only to forward your store events and read your ads data. Encrypted at rest, deleted if you uninstall.
+                    Credentials required by OpenAI Ads Manager. We use these to forward storefront customer events to OpenAI CAPI. Encrypted at rest, deleted if you uninstall.
                   </Text>
 
                   <BlockStack gap="300">
@@ -117,83 +139,29 @@ export default function Settings() {
                       label="Pixel ID *"
                       value={pixelId}
                       onChange={setPixelId}
-                      placeholder="e.g. QgedQGwnYIJIVHMvHwSvh2"
+                      placeholder="e.g. gpt_987654321098"
                       autoComplete="off"
-                      helpText="Create one in Ads Manager, Conversions, Create new pixel."
+                      helpText="Create one in OpenAI Ads Manager under Conversions."
                     />
 
                     <TextField
-                      label="Conversions API key *"
+                      label="Conversions API key (CAPI) *"
                       value={capiKey}
                       onChange={setCapiKey}
-                      type={showCapiKey ? "text" : "password"}
-                      placeholder="Paste your key..."
+                      type="password"
+                      placeholder="sk-..."
                       autoComplete="off"
-                      helpText="Lets Reach send your store events to OpenAI. Create it under Ads Manager, Conversions, Manage conversion keys."
-                      suffix={
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            height: "100%",
-                          }}
-                        >
-                          <Button
-                            icon={showCapiKey ? HideIcon : ViewIcon}
-                            onClick={() => setShowCapiKey((prev) => !prev)}
-                            variant="plain"
-                            accessibilityLabel={
-                              showCapiKey ? "Hide API key" : "Show API key"
-                            }
-                          />
-                        </div>
-                      }
-                    />
-
-                    <TextField
-                      label="Advertiser API key (optional)"
-                      value={advertiserKey}
-                      onChange={setAdvertiserKey}
-                      type={showAdvertiserKey ? "text" : "password"}
-                      placeholder="Paste your key"
-                      autoComplete="off"
-                      helpText="Unlocks spend, ROAS, and CPA on your Performance page. A separate key from Ads Manager. Paste it whenever you're ready."
-                      suffix={
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            height: "100%",
-                          }}
-                        >
-                          <Button
-                            icon={showAdvertiserKey ? HideIcon : ViewIcon}
-                            onClick={() => setShowAdvertiserKey((prev) => !prev)}
-                            variant="plain"
-                            accessibilityLabel={
-                              showAdvertiserKey ? "Hide API key" : "Show API key"
-                            }
-                          />
-                        </div>
-                      }
+                      helpText="Powers server-side CAPI event delivery. Create it under Ads Manager, Conversions, Manage conversion keys."
                     />
                   </BlockStack>
 
-                  <InlineStack gap="200" align="space-between" blockAlign="center">
-                    <InlineStack gap="200">
-                      {pixelId ? (
-                        <Badge tone="success">Pixel ID set</Badge>
-                      ) : (
-                        <Badge tone="attention">Pixel ID missing</Badge>
-                      )}
-                      {capiKey ? (
-                        <Badge tone="success">Conversions key set</Badge>
-                      ) : (
-                        <Badge tone="attention">Conversions key missing</Badge>
-                      )}
-                      <Badge tone="subdued">Advertiser key optional</Badge>
-                    </InlineStack>
-
+                  <InlineStack gap="300" align="end">
+                    <Button
+                      onClick={handleTestConnection}
+                      loading={testingConnection}
+                    >
+                      Test Connection
+                    </Button>
                     <Button variant="primary" onClick={handleSave} loading={saving}>
                       Save Settings
                     </Button>
@@ -201,73 +169,48 @@ export default function Settings() {
                 </BlockStack>
               </Box>
             </Card>
-
-            {/* Connection status Card */}
-            <Card radius="300">
-              <Box padding="500">
-                <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">
-                    Connection status
-                  </Text>
-
-                  <BlockStack gap="300">
-                    {/* Row 1: Conversions API */}
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="050">
-                        <Text variant="bodyMd" fontWeight="semibold">
-                          Conversions API
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          Forwarding events to OpenAI
-                        </Text>
-                      </BlockStack>
-                      {capiKey ? (
-                        <Badge tone="success">Connected</Badge>
-                      ) : (
-                        <Badge tone="critical">Disconnected</Badge>
-                      )}
-                    </InlineStack>
-
-                    <Divider />
-
-                    {/* Row 2: Advertiser API */}
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="050">
-                        <Text variant="bodyMd" fontWeight="semibold">
-                          Advertiser API
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          Unlocks spend, ROAS, and CPA
-                        </Text>
-                      </BlockStack>
-                      {advertiserKey ? (
-                        <Badge tone="success">Connected</Badge>
-                      ) : (
-                        <Badge tone="subdued">Not connected - Optional</Badge>
-                      )}
-                    </InlineStack>
-
-                    <Divider />
-
-                    {/* Row 3: Web pixel on storefront */}
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="050">
-                        <Text variant="bodyMd" fontWeight="semibold">
-                          Web pixel on storefront
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          Corrected snippet installed
-                        </Text>
-                      </BlockStack>
-                      <Badge tone="success">Live</Badge>
-                    </InlineStack>
-                  </BlockStack>
-                </BlockStack>
-              </Box>
-            </Card>
           </BlockStack>
         </Page>
       </Box>
+
+      {/* Test Connection Result Modal */}
+      {testResult && (
+        <Modal
+          open={testModalOpen}
+          onClose={() => setTestModalOpen(false)}
+          title="Test Connection Results"
+          primaryAction={{
+            content: "Close",
+            onAction: () => setTestModalOpen(false),
+          }}
+        >
+          <Modal.Section>
+            <BlockStack gap="400">
+              <Banner
+                title={testResult.success ? "Connection Test Passed" : "Connection Test Failed"}
+                status={testResult.success ? "success" : "critical"}
+              >
+                <p>{testResult.message}</p>
+              </Banner>
+
+              <BlockStack gap="200">
+                <InlineStack align="space-between">
+                  <Text variant="bodyMd">Conversions API Endpoint</Text>
+                  {testResult.details?.capi ? <Badge tone="success">✓ Connected</Badge> : <Badge tone="critical">✕ Failed</Badge>}
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text variant="bodyMd">Pixel ID Registration</Text>
+                  {testResult.details?.pixel ? <Badge tone="success">✓ Installed</Badge> : <Badge tone="critical">✕ Missing</Badge>}
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text variant="bodyMd">API Key Authorization</Text>
+                  {testResult.details?.credentials ? <Badge tone="success">✓ Valid</Badge> : <Badge tone="critical">✕ Invalid</Badge>}
+                </InlineStack>
+              </BlockStack>
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
 
       {toastMessage && (
         <Toast

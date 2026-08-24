@@ -6,7 +6,19 @@ export default function AppLayout() {
     <>
       <NavMenu>
         <Link to="/" rel="home">
-          Performance
+          Overview
+        </Link>
+        <Link to="/pixels">
+          Pixels
+        </Link>
+        <Link to="/analytics">
+          Analytics
+        </Link>
+        <Link to="/event-logs">
+          Event Logs
+        </Link>
+        <Link to="/setup-guide">
+          Setup Guide
         </Link>
         <Link to="/settings">
           Settings

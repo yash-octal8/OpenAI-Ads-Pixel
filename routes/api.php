@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ChargeController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\PixelController;
+use App\Http\Middleware\CorsMiddleware;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,11 +26,24 @@ Route::middleware(['verify.shopify'])->group(function () {
     Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'store']);
 
-    // Pixel Helper & Tracking
+    // Pixel Settings & Connection Test
     Route::get('/pixel', [PixelController::class, 'index']);
     Route::post('/pixel/settings', [PixelController::class, 'saveSettings']);
+    Route::post('/pixel/test-connection', [PixelController::class, 'testConnection']);
     Route::post('/pixel/track', [PixelController::class, 'trackEvent']);
     Route::post('/pixel/clear', [PixelController::class, 'clearEvents']);
+
+    // Multi-Pixels Management (CRUD)
+    Route::get('/pixels', [PixelController::class, 'getPixels']);
+    Route::post('/pixels', [PixelController::class, 'storePixel']);
+    Route::put('/pixels/{id}', [PixelController::class, 'updatePixel']);
+    Route::delete('/pixels/{id}', [PixelController::class, 'deletePixel']);
+
+    // Event Logs & Debugger
+    Route::get('/event-logs', [PixelController::class, 'getEventLogs']);
+
+    // Analytics & ROAS Performance
+    Route::get('/analytics', [PixelController::class, 'getAnalytics']);
 
     // ── Fallback for any unimplemented protected API route ──────────────────
     Route::fallback(function () {
@@ -38,5 +52,7 @@ Route::middleware(['verify.shopify'])->group(function () {
 });
 
 // ── Public Storefront / CORS-enabled endpoints ───────────────────────────────
-Route::options('/events', [PixelController::class, 'options']);
-Route::post('/events', [PixelController::class, 'publicTrackEvent']);
+Route::middleware([CorsMiddleware::class])->group(function () {
+    Route::options('/events', [PixelController::class, 'options']);
+    Route::post('/events', [PixelController::class, 'publicTrackEvent']);
+});
