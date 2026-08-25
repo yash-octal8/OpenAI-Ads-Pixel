@@ -439,11 +439,11 @@ return [
     */
 
     'webhooks' => [
-        [
-            'topic' => 'APP_UNINSTALLED',
-            'address' => env('APP_URL') . '/webhook/app-uninstalled',
-            'class' => \App\Jobs\AppUninstalledJob::class
-        ]
+            'app-uninstalled' => [
+            'topic' => 'app/uninstalled',
+            'address' => "$baseUrl/webhook/app-uninstalled",
+            'class' => \App\Jobs\AppUninstalledJob::class,
+        ],
     ],
 
     /*

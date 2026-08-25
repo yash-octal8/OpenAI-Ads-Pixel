@@ -53,6 +53,16 @@ class PixelController extends Controller
         // Revenue & performance metrics
         $metrics = $this->attributionService->getPerformanceMetrics($user->id);
 
+        // Ensure Web Pixel is synced in Shopify Customer Events
+        try {
+            if ($user && !empty($settings->pixel_id)) {
+                $shopifyService = new ShopifyService($user);
+                $shopifyService->syncWebPixel($settings->pixel_id);
+            }
+        } catch (\Throwable $e) {
+            Log::info("Web Pixel sync attempt on index: " . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'settings' => new ShopSettingResource($settings),
@@ -94,6 +104,13 @@ class PixelController extends Controller
         $user = Auth::user();
         $pixel = $this->pixelRepo->createPixel($user->id, $request->all());
 
+        try {
+            $shopifyService = new ShopifyService($user);
+            $shopifyService->syncWebPixel($pixel->pixel_id);
+        } catch (\Throwable $e) {
+            Log::info("Web Pixel sync on storePixel: " . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Pixel created successfully!',
@@ -109,6 +126,13 @@ class PixelController extends Controller
         $user = Auth::user();
         $pixel = $this->pixelRepo->updatePixel($id, $user->id, $request->all());
 
+        try {
+            $shopifyService = new ShopifyService($user);
+            $shopifyService->syncWebPixel($pixel->pixel_id);
+        } catch (\Throwable $e) {
+            Log::info("Web Pixel sync on updatePixel: " . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Pixel updated successfully!',
@@ -123,6 +147,16 @@ class PixelController extends Controller
     {
         $user = Auth::user();
         $deleted = $this->pixelRepo->deletePixel($id, $user->id);
+
+        try {
+            $setting = $this->pixelRepo->getSettingsByUserId($user->id);
+            $shopifyService = new ShopifyService($user);
+            if (!empty($setting->pixel_id)) {
+                $shopifyService->syncWebPixel($setting->pixel_id);
+            }
+        } catch (\Throwable $e) {
+            Log::info("Web Pixel sync on deletePixel: " . $e->getMessage());
+        }
 
         return response()->json([
             'success' => $deleted,
@@ -182,7 +216,7 @@ class PixelController extends Controller
 
         try {
             $shopifyService = new ShopifyService($user);
-            $shopifyService->createWebPixel($pixelId);
+            $shopifyService->syncWebPixel($pixelId);
         } catch (\Throwable $e) {
             Log::info("Web Pixel registration attempt: " . $e->getMessage());
         }
@@ -227,13 +261,14 @@ class PixelController extends Controller
 
         // Event ID strategy for browser + server deduplication
         $eventId = $data['event_id'] ?? $request->input('event_id') ?: ('evt_' . time() . '_' . rand(1000, 9999));
-        $oppref = $data['oppref'] ?? $request->input('oppref') ?: ($payload['oppref'] ?? null);
+        $rawOppref = $data['oppref'] ?? $request->input('oppref') ?: ($payload['oppref'] ?? null);
+        $oppref = is_string($rawOppref) ? $rawOppref : (is_scalar($rawOppref) ? (string)$rawOppref : null);
 
         // Server-side CAPI delivery
         $capiResult = ['response_code' => 200, 'response_body' => 'Browser Event Recorded', 'success' => true];
         if (!empty($capiKey) && !empty($pixelId)) {
             $capiService = new OpenAIConversionService($pixelId, $capiKey);
-            $capiResult = $capiService->sendEvent($eventName, $eventId, $payload, $oppref);
+            $capiResult = $capiService->sendEvent($eventName, $eventId, is_array($payload) ? $payload : [], $oppref);
         }
 
         $event = $this->pixelRepo->createEvent([
@@ -333,12 +368,13 @@ class PixelController extends Controller
         $eventType = $request->input('event_type', 'Standard');
         $payload = $request->input('payload', $this->generateMockPayload($eventName));
         $eventId = $request->input('event_id') ?: ('evt_' . time() . '_' . rand(1000, 9999));
-        $oppref = $request->input('oppref') ?: ($payload['oppref'] ?? null);
+        $rawOppref = $request->input('oppref') ?: ($payload['oppref'] ?? null);
+        $oppref = is_string($rawOppref) ? $rawOppref : (is_scalar($rawOppref) ? (string)$rawOppref : null);
 
         $capiResult = ['response_code' => 200, 'response_body' => 'Local Event Logged', 'success' => true];
         if (!empty($capiKey) && !empty($pixelId)) {
             $capiService = new OpenAIConversionService($pixelId, $capiKey);
-            $capiResult = $capiService->sendEvent($eventName, $eventId, $payload, $oppref);
+            $capiResult = $capiService->sendEvent($eventName, $eventId, is_array($payload) ? $payload : [], $oppref);
         }
 
         $event = $this->pixelRepo->createEvent([

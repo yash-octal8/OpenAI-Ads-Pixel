@@ -93,8 +93,10 @@ class OpenAIConversionService
     /**
      * Send event to OpenAI Conversions API
      */
-    public function sendEvent(string $eventName, string $eventId, array $payload = [], ?string $oppref = null, bool $testMode = false): array
+    public function sendEvent(string $eventName, string $eventId, array $payload = [], mixed $oppref = null, bool $testMode = false): array
     {
+        $opprefStr = is_string($oppref) ? $oppref : (is_scalar($oppref) ? (string)$oppref : null);
+
         if (empty($this->pixelId)) {
             return [
                 'success' => false,

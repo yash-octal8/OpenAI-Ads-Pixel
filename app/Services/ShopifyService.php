@@ -41,6 +41,67 @@ class ShopifyService
     return $this->execute($query);
   }
 
+  public function getWebPixels(): array
+  {
+    $query = <<<'GQL'
+        query getWebPixels {
+          webPixels(first: 10) {
+            edges {
+              node {
+                id
+                settings
+              }
+            }
+          }
+        }
+    GQL;
+
+    return $this->execute($query);
+  }
+
+  public function syncWebPixel(string $pixelId): array
+  {
+    if (!$this->shop) {
+      return ['errors' => true, 'message' => 'Shop reference missing'];
+    }
+
+    $existingRes = $this->getWebPixels();
+    $existingEdges = $existingRes['body']['data']['webPixels']['edges'] ?? ($existingRes['data']['webPixels']['edges'] ?? []);
+
+    $settingsJson = json_encode(['pixel_id' => $pixelId]);
+
+    if (!empty($existingEdges)) {
+      $existingId = $existingEdges[0]['node']['id'];
+      $mutation = <<<'GQL'
+          mutation webPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
+            webPixelUpdate(id: $id, webPixel: $webPixel) {
+              userErrors {
+                field
+                message
+              }
+              webPixel {
+                id
+                settings
+              }
+            }
+          }
+      GQL;
+
+      $input = [
+        'id' => $existingId,
+        'webPixel' => [
+          'settings' => $settingsJson,
+        ],
+      ];
+
+      $res = $this->execute($mutation, $input);
+      \Log::info("webPixelUpdate GraphQL response for {$pixelId}: " . json_encode($res));
+      return $res;
+    } else {
+      return $this->createWebPixel($pixelId);
+    }
+  }
+
   public function createWebPixel(string $pixelId): array
   {
     $mutation = <<<'GQL'
@@ -66,6 +127,30 @@ class ShopifyService
 
     $res = $this->execute($mutation, $input);
     \Log::info("createWebPixel GraphQL response for {$pixelId}: " . json_encode($res));
+
+    // Check for access denied errors
+    $graphQLErrors = $res['body']['errors'] ?? ($res['errors'] ?? []);
+    if (!empty($graphQLErrors)) {
+      foreach ($graphQLErrors as $err) {
+        $msg = strtolower($err['message'] ?? '');
+        if (str_contains($msg, 'access denied') || str_contains($msg, 'write_pixels') || str_contains($msg, 'read_customer_events')) {
+          \Log::warning("Web Pixel registration blocked: Shopify Access Denied for write_pixels / read_customer_events scope. Store re-authentication required.");
+        }
+      }
+    }
+
+    // If pixel already exists, fall back to sync/update
+    $userErrors = $res['body']['data']['webPixelCreate']['userErrors'] ?? ($res['data']['webPixelCreate']['userErrors'] ?? []);
+    if (!empty($userErrors)) {
+      foreach ($userErrors as $err) {
+        $msg = strtolower($err['message'] ?? '');
+        if (str_contains($msg, 'already exists') || str_contains($msg, 'already been set') || str_contains($msg, 'update mutation') || str_contains($msg, 'taken')) {
+          \Log::info("Web pixel already exists on shop, falling back to update...");
+          return $this->syncWebPixel($pixelId);
+        }
+      }
+    }
+
     return $res;
   }
 

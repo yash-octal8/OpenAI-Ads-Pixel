@@ -58,4 +58,14 @@ class User extends Authenticatable implements IShopModel
     {
         return $this->hasMany(PixelEvent::class);
     }
+
+    public function pixels()
+    {
+        return $this->hasMany(Pixel::class);
+    }
+
+    public function attributions()
+    {
+        return $this->hasMany(Attribution::class);
+    }
 }

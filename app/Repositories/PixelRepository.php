@@ -13,16 +13,26 @@ class PixelRepository
 {
     public function getSettingsByUserId(int $userId): ShopSetting
     {
-        return ShopSetting::firstOrCreate(
+        $user = User::find($userId);
+        $defaultPixelId = $user ? ('oai_px_' . substr(md5($user->name . '_' . $user->id), 0, 12)) : ('oai_px_' . rand(100000, 999999));
+
+        $setting = ShopSetting::firstOrCreate(
             ['user_id' => $userId],
             [
-                'pixel_id' => '',
+                'pixel_id' => $defaultPixelId,
                 'capi_key' => '',
                 'advertiser_key' => '',
                 'tracking_enabled' => true,
                 'pixel_helper_enabled' => true,
             ]
         );
+
+        if (empty($setting->pixel_id)) {
+            $setting->pixel_id = $defaultPixelId;
+            $setting->save();
+        }
+
+        return $setting;
     }
 
     public function updateOrCreateSettings(int $userId, array $data): ShopSetting
@@ -83,19 +93,16 @@ class PixelRepository
         return $firstUser ? $firstUser->id : 1;
     }
 
-    /**
-     * Get all pixels for a user
-     */
     public function getPixelsByUserId(int $userId)
     {
         $pixels = Pixel::where('user_id', $userId)->latest()->get();
 
         if ($pixels->isEmpty()) {
-            $setting = ShopSetting::where('user_id', $userId)->first();
-            if ($setting && !empty($setting->pixel_id)) {
+            $setting = $this->getSettingsByUserId($userId);
+            if (!empty($setting->pixel_id)) {
                 Pixel::create([
                     'user_id' => $userId,
-                    'name' => 'GPT Pixel — Main Store',
+                    'name' => 'OpenAI Pixel — Main Store',
                     'pixel_id' => $setting->pixel_id,
                     'capi_key' => $setting->capi_key,
                     'status' => 'active',
@@ -113,7 +120,7 @@ class PixelRepository
      */
     public function createPixel(int $userId, array $data): Pixel
     {
-        return Pixel::create([
+        $pixel = Pixel::create([
             'user_id' => $userId,
             'name' => $data['name'] ?? 'GPT Pixel',
             'pixel_id' => $data['pixel_id'],
@@ -123,6 +130,18 @@ class PixelRepository
             'coverage_type' => $data['coverage_type'] ?? 'entire_store',
             'target_selection' => $data['target_selection'] ?? null,
         ]);
+
+        if (!empty($data['pixel_id'])) {
+            ShopSetting::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'pixel_id' => $data['pixel_id'],
+                    'capi_key' => $data['capi_key'] ?? '',
+                ]
+            );
+        }
+
+        return $pixel;
     }
 
     /**
@@ -133,11 +152,14 @@ class PixelRepository
         $pixel = Pixel::where('id', $pixelDbId)->where('user_id', $userId)->firstOrFail();
         $pixel->update($data);
 
-        // Sync with ShopSetting if pixel_id updated
+        // Sync with ShopSetting if pixel_id or capi_key updated
         if (!empty($data['pixel_id'])) {
             ShopSetting::updateOrCreate(
                 ['user_id' => $userId],
-                ['pixel_id' => $data['pixel_id']]
+                [
+                    'pixel_id' => $data['pixel_id'],
+                    'capi_key' => $data['capi_key'] ?? '',
+                ]
             );
         }
 
@@ -149,7 +171,25 @@ class PixelRepository
      */
     public function deletePixel(int $pixelDbId, int $userId): bool
     {
-        return Pixel::where('id', $pixelDbId)->where('user_id', $userId)->delete() > 0;
+        $pixel = Pixel::where('id', $pixelDbId)->where('user_id', $userId)->first();
+        if (!$pixel) {
+            return false;
+        }
+
+        $deletedPixelId = $pixel->pixel_id;
+        $deleted = $pixel->delete();
+
+        if ($deleted) {
+            $setting = ShopSetting::where('user_id', $userId)->where('pixel_id', $deletedPixelId)->first();
+            if ($setting) {
+                $nextPixel = Pixel::where('user_id', $userId)->where('status', 'active')->first();
+                $setting->pixel_id = $nextPixel ? $nextPixel->pixel_id : '';
+                $setting->capi_key = $nextPixel ? ($nextPixel->capi_key ?? '') : '';
+                $setting->save();
+            }
+        }
+
+        return $deleted;
     }
 
     /**
@@ -190,7 +230,8 @@ class PixelRepository
         $eventId = $data['event_id'] ?? ('evt_' . time() . '_' . rand(1000, 9999));
         $eventName = $data['event_name'] ?? 'page_viewed';
         $payload = $data['payload'] ?? [];
-        $oppref = $data['oppref'] ?? $payload['oppref'] ?? null;
+        $rawOppref = $data['oppref'] ?? $payload['oppref'] ?? null;
+        $oppref = is_string($rawOppref) ? $rawOppref : (is_scalar($rawOppref) ? (string)$rawOppref : null);
         $orderId = $data['order_id'] ?? $payload['order_id'] ?? null;
         $userId = $data['user_id'] ?? 1;
 

@@ -41,23 +41,18 @@ class AppUninstalledJob extends \Osiset\ShopifyApp\Messaging\Jobs\AppUninstalled
         if ($shopModel) {
             $shopIdNative = $shopModel->id;
 
-            // 1. Delete Charges explicitly from database
+            // 1. Delete Charges, Attributions, Pixels, Pixel Events, and Settings explicitly from database
             try {
                 \DB::table('charges')->where('user_id', $shopIdNative)->delete();
+
+                $shopModel->attributions()->delete();
+                $shopModel->pixels()->delete();
+                $shopModel->pixelEvents()->delete();
+                $shopModel->setting()->delete();
+
+                Log::info("Cleaned up attributions, pixels, pixel_events, shop_settings, and charges for {$shopDomain}");
             } catch (\Throwable $e) {
-                Log::error("Failed to delete charges via DB for {$shopDomain}: " . $e->getMessage());
-            }
-            
-            // 2. Delete related user data (settings, jobs, reviews)
-            try {
-                if (method_exists($shopModel, 'setting')) {
-                    $shopModel->setting()->delete();
-                }
-                  if (method_exists($shopModel, 'pixelEvents')) {
-                    $shopModel->pixelEvents()->delete();
-                }
-            } catch (\Throwable $e) {
-                Log::error("Failed to clean up user data for {$shopDomain}: " . $e->getMessage());
+                Log::error("Failed to clean up database tables for {$shopDomain}: " . $e->getMessage());
             }
             
 

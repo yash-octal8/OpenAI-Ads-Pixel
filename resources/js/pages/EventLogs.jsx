@@ -82,6 +82,26 @@ export default function EventLogs() {
     }
   };
 
+  const [sendingTest, setSendingTest] = useState(false);
+
+  const handleSendTestEvent = async () => {
+    try {
+      setSendingTest(true);
+      const res = await api.post("/pixel/track", {
+        event_name: "page_viewed",
+        event_type: "Standard",
+      });
+      if (res.data.success) {
+        setToastMessage("Test event logged successfully!");
+        fetchEvents();
+      }
+    } catch (e) {
+      console.error("Failed to send test event", e);
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   const handleClearLogs = async () => {
     try {
       await api.post("/pixel/clear");
@@ -163,9 +183,14 @@ export default function EventLogs() {
                 </Text>
               </BlockStack>
 
-              <Button onClick={handleClearLogs}>
-                Clear Event Logs
-              </Button>
+              <InlineStack gap="300">
+                <Button variant="primary" onClick={handleSendTestEvent} loading={sendingTest}>
+                  Send Test Event
+                </Button>
+                <Button onClick={handleClearLogs}>
+                  Clear Event Logs
+                </Button>
+              </InlineStack>
             </InlineStack>
             {/* Filters Bar */}
             <Card radius="300">
