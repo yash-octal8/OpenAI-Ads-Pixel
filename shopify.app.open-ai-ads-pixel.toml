@@ -1,16 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "9a5c6f0d42117559956e1fec025fc24b"
+client_id = "d93873620e405deb915970c2dacd5c85"
 name = "Open Ai Ads Pixel"
 application_url = "https://openAI-ads-pixel.test"
 embedded = true
-
-[webhooks]
-api_version = "2026-07"
-
-  [[webhooks.subscriptions]]
-  uri = "/webhook/app-uninstalled"
-  topics = [ "app/uninstalled" ]
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -20,3 +13,6 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [ "https://openAI-ads-pixel.test/authenticate" ]
+
+[webhooks]
+api_version = "2026-07"

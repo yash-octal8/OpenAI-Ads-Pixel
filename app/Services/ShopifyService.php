@@ -41,11 +41,17 @@ class ShopifyService
     return $this->execute($query);
   }
 
+  protected static array $syncedPixels = [];
+
   public function getWebPixels(): array
   {
     $query = <<<'GQL'
         query getWebPixels {
           webPixels(first: 10) {
+            nodes {
+              id
+              settings
+            }
             edges {
               node {
                 id
@@ -59,47 +65,95 @@ class ShopifyService
     return $this->execute($query);
   }
 
-  public function syncWebPixel(string $pixelId): array
+  public function getWebPixelId(): ?string
+  {
+    $res = $this->getWebPixels();
+    $arrayData = json_decode(json_encode($res), true);
+
+    $nodes = $arrayData['body']['data']['webPixels']['nodes']
+      ?? ($arrayData['data']['webPixels']['nodes'] ?? []);
+    if (!empty($nodes) && isset($nodes[0]['id'])) {
+      return $nodes[0]['id'];
+    }
+
+    $edges = $arrayData['body']['data']['webPixels']['edges']
+      ?? ($arrayData['data']['webPixels']['edges'] ?? []);
+    if (!empty($edges) && isset($edges[0]['node']['id'])) {
+      return $edges[0]['node']['id'];
+    }
+
+    return null;
+  }
+
+  public function clearPixelCache(): void
+  {
+    if ($this->shop) {
+      \Illuminate\Support\Facades\Cache::forget("web_pixel_synced_{$this->shop->id}");
+      \Illuminate\Support\Facades\Cache::forget("scope_denied_write_pixels_{$this->shop->id}");
+    }
+  }
+
+  public function syncWebPixel(string $pixelId, bool $force = false): array
   {
     if (!$this->shop) {
       return ['errors' => true, 'message' => 'Shop reference missing'];
     }
 
-    $existingRes = $this->getWebPixels();
-    $existingEdges = $existingRes['body']['data']['webPixels']['edges'] ?? ($existingRes['data']['webPixels']['edges'] ?? []);
+    if (empty($pixelId)) {
+      return ['errors' => false, 'message' => 'Pixel ID empty'];
+    }
 
-    $settingsJson = json_encode(['pixel_id' => $pixelId]);
+    $shopCacheKey = "web_pixel_synced_{$this->shop->id}";
+    if (!$force && \Illuminate\Support\Facades\Cache::has($shopCacheKey)) {
+      return ['success' => true, 'message' => 'Web pixel already active on shop'];
+    }
 
-    if (!empty($existingEdges)) {
-      $existingId = $existingEdges[0]['node']['id'];
-      $mutation = <<<'GQL'
-          mutation webPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
-            webPixelUpdate(id: $id, webPixel: $webPixel) {
-              userErrors {
-                field
-                message
-              }
-              webPixel {
-                id
-                settings
-              }
+    $guardKey = $this->shop->id . '_' . $pixelId;
+    if (isset(self::$syncedPixels[$guardKey])) {
+      return ['errors' => false, 'message' => 'Already synced in current request'];
+    }
+    self::$syncedPixels[$guardKey] = true;
+
+    \Illuminate\Support\Facades\Cache::put($shopCacheKey, true, now()->addHours(1));
+
+    $existingId = $this->getWebPixelId();
+    if ($existingId) {
+      return $this->updateWebPixel($existingId, $pixelId);
+    }
+
+    return $this->createWebPixel($pixelId);
+  }
+
+  public function updateWebPixel(string $webPixelGid, string $pixelId): array
+  {
+    $mutation = <<<'GQL'
+        mutation webPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
+          webPixelUpdate(id: $id, webPixel: $webPixel) {
+            userErrors {
+              field
+              message
+            }
+            webPixel {
+              id
+              settings
             }
           }
-      GQL;
+        }
+    GQL;
 
-      $input = [
-        'id' => $existingId,
-        'webPixel' => [
-          'settings' => $settingsJson,
-        ],
-      ];
+    $input = [
+      'id' => $webPixelGid,
+      'webPixel' => [
+        'settings' => json_encode(['pixel_id' => $pixelId]),
+      ],
+    ];
 
-      $res = $this->execute($mutation, $input);
-      \Log::info("webPixelUpdate GraphQL response for {$pixelId}: " . json_encode($res));
-      return $res;
-    } else {
-      return $this->createWebPixel($pixelId);
+    $res = $this->execute($mutation, $input);
+    
+    if ($this->shop) {
+      \Illuminate\Support\Facades\Cache::put("web_pixel_created_{$this->shop->id}_{$pixelId}", true, now()->addDays(30));
     }
+    return $res;
   }
 
   public function createWebPixel(string $pixelId): array
@@ -126,7 +180,6 @@ class ShopifyService
     ];
 
     $res = $this->execute($mutation, $input);
-    \Log::info("createWebPixel GraphQL response for {$pixelId}: " . json_encode($res));
 
     // Check for access denied errors
     $graphQLErrors = $res['body']['errors'] ?? ($res['errors'] ?? []);
@@ -134,21 +187,31 @@ class ShopifyService
       foreach ($graphQLErrors as $err) {
         $msg = strtolower($err['message'] ?? '');
         if (str_contains($msg, 'access denied') || str_contains($msg, 'write_pixels') || str_contains($msg, 'read_customer_events')) {
+          if ($this->shop) {
+            \Illuminate\Support\Facades\Cache::put("scope_denied_write_pixels_{$this->shop->id}", true, now()->addMinutes(10));
+          }
           \Log::warning("Web Pixel registration blocked: Shopify Access Denied for write_pixels / read_customer_events scope. Store re-authentication required.");
         }
       }
     }
 
-    // If pixel already exists, fall back to sync/update
+    // If pixel already exists, cache that it is active and exit cleanly
     $userErrors = $res['body']['data']['webPixelCreate']['userErrors'] ?? ($res['data']['webPixelCreate']['userErrors'] ?? []);
     if (!empty($userErrors)) {
       foreach ($userErrors as $err) {
         $msg = strtolower($err['message'] ?? '');
         if (str_contains($msg, 'already exists') || str_contains($msg, 'already been set') || str_contains($msg, 'update mutation') || str_contains($msg, 'taken')) {
-          \Log::info("Web pixel already exists on shop, falling back to update...");
-          return $this->syncWebPixel($pixelId);
+          if ($this->shop) {
+            \Illuminate\Support\Facades\Cache::put("web_pixel_created_{$this->shop->id}_{$pixelId}", true, now()->addDays(30));
+          }
+          return ['success' => true, 'message' => 'Web pixel already active on shop'];
         }
       }
+    }
+
+    $webPixel = $res['body']['data']['webPixelCreate']['webPixel'] ?? ($res['data']['webPixelCreate']['webPixel'] ?? null);
+    if ($webPixel && $this->shop) {
+      \Illuminate\Support\Facades\Cache::put("web_pixel_created_{$this->shop->id}_{$pixelId}", true, now()->addDays(30));
     }
 
     return $res;
